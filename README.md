@@ -111,16 +111,29 @@ $ dict --clear-cache
 
 ## Installing
 
-Needs a Rust toolchain (1.74 or newer).
+Needs a Rust toolchain (1.74 or newer). The install script builds the release
+binary and puts it on your PATH, so `dict` works from any directory:
+
+```
+./install.sh
+```
+
+It installs to `~/.local/bin` by default, tells you if that directory is not on
+your PATH (and prints the line to add for your shell), and warns if another
+`dict` earlier on your PATH would shadow it. It edits no shell config of its
+own.
+
+```
+./install.sh --prefix /usr/local/bin   # somewhere else
+./install.sh --uninstall               # remove it again
+./install.sh --uninstall --purge       # and delete the cached entries
+```
+
+Or use cargo directly, if `~/.cargo/bin` is on your PATH:
 
 ```
 cargo install --path .
-```
-
-Or build in place:
-
-```
-cargo build --release    # binary at target/release/dict
+cargo build --release    # or just build in place, at target/release/dict
 ```
 
 ## Usage
@@ -170,7 +183,7 @@ follows one hop to the real definitions, then reports where they came from.
 | `src/render.rs` | terminal output |
 
 ```
-cargo test     # 39 tests, including integrity checks on the curated word lists
+cargo test     # 40 tests, including integrity checks on the curated word lists
 ```
 
 ## Licence

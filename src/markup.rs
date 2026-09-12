@@ -313,10 +313,18 @@ fn render_template(body: &str) -> String {
             let display = arg(1);
             if display.is_empty() { arg(0) } else { display }
         }
-        "w" | "pedia" | "wikipedia" => {
+        // `{{w|Page|Display}}` is an inline link to Wikipedia.
+        "w" => {
             let display = render(t.positional(1));
             if display.is_empty() { render(t.positional(0)) } else { display }
         }
+        // Sense anchors, sidebar boxes, category markers and editor requests
+        // are invisible on Wiktionary, so they must not leak into a definition.
+        // `{{senseid|en|cheese}}` would otherwise render as a stray "cheese".
+        "senseid" | "anchor" | "wikipedia" | "pedia" | "wp" | "slim-wikipedia"
+        | "c" | "topics" | "catlangname" | "cln" | "categorize" | "examples"
+        | "rfex" | "rfd" | "rfv" | "rfdef" | "rfquote" | "rfc" | "rfclarify"
+        | "attention" | "attn" | "tea room" => String::new(),
         "taxlink" | "vern" | "taxfmt" => render(t.positional(0)),
         // Parenthesised glosses and qualifiers.
         "gloss" | "gl" => format!("({})", arg(0)),
@@ -410,6 +418,20 @@ mod tests {
     fn drops_metadata_templates() {
         assert_eq!(plain("a word {{defdate|from 1590}}"), "a word");
         assert_eq!(plain("{{rfd|en}}text"), "text");
+    }
+
+    #[test]
+    fn drops_invisible_anchors_and_category_markers() {
+        // A sense anchor names the sense for linking; it is not part of it.
+        assert_eq!(
+            plain("{{senseid|en|cheese}} A [[dish#Noun|dish]] of fries."),
+            "A dish of fries."
+        );
+        assert_eq!(plain("{{anchor|x}}text"), "text");
+        assert_eq!(plain("{{C|en|Foods}}a food"), "a food");
+        // The inline Wikipedia link still renders.
+        assert_eq!(plain("{{w|Quebec}} cuisine"), "Quebec cuisine");
+        assert_eq!(plain("{{w|Quebec|la belle province}}"), "la belle province");
     }
 
     #[test]
