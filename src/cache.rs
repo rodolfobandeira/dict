@@ -18,7 +18,7 @@ pub fn dir() -> PathBuf {
 }
 
 /// Map a word to a filename, escaping anything that is not a plain ASCII
-/// letter, digit, hyphen or apostrophe so that entries like `a/b` or `café`
+/// letter, digit or hyphen so that entries like `a/b` or `café`
 /// cannot escape the cache directory.
 fn file_name(word: &str) -> String {
     let mut name = String::with_capacity(word.len() + 8);

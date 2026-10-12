@@ -40,14 +40,15 @@ pub struct Fetched {
 pub fn wikitext(word: &str, offline: bool, refresh: bool) -> Result<Fetched, FetchError> {
     if !refresh {
         if let Some(cached) = cache::read(word) {
-            return Ok(Fetched { wikitext: cached, from_cache: true });
+            // Entries cached by older versions were stored unsanitized.
+            return Ok(Fetched { wikitext: sanitize(&cached), from_cache: true });
         }
     }
     if offline {
         return Err(FetchError::NotCached);
     }
 
-    let text = download(word)?;
+    let text = sanitize(&download(word)?);
     // A failed cache write should not fail the lookup.
     let _ = cache::write(word, &text);
     Ok(Fetched { wikitext: text, from_cache: false })
@@ -105,10 +106,27 @@ pub fn suggestions(word: &str) -> Vec<String> {
                 .iter()
                 .filter_map(|t| t.as_str())
                 .filter(|t| !t.eq_ignore_ascii_case(word))
-                .map(String::from)
+                .map(sanitize)
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Remove characters that a terminal would act on rather than print.
+///
+/// Wiktionary is editable by anyone, so its text must not be able to smuggle
+/// escape sequences (colours, cursor movement, OSC title or hyperlink codes)
+/// or bidirectional overrides onto the reader's terminal. This also keeps
+/// upstream text from forging the emphasis markers `markup` inserts later.
+/// Newlines and tabs are kept; the parser needs them.
+pub fn sanitize(text: &str) -> String {
+    text.chars()
+        .filter(|&c| c == '\n' || c == '\t' || !(c.is_control() || is_bidi_control(c)))
+        .collect()
+}
+
+fn is_bidi_control(c: char) -> bool {
+    matches!(c, '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
 }
 
 /// Percent-encode a page title for use in a query string.
@@ -124,4 +142,21 @@ fn encode(word: &str) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize;
+
+    #[test]
+    fn sanitize_strips_terminal_escapes() {
+        let hostile = "a\u{1b}[2J\u{1b}]0;pwned\u{7}b\u{9b}31mc\u{1}d\u{202E}e\rf";
+        assert_eq!(sanitize(hostile), "a[2J]0;pwnedb31mcdef");
+    }
+
+    #[test]
+    fn sanitize_keeps_ordinary_text() {
+        let text = "===Noun===\n# A {{lb|en|Canada}} hat.\tcafé /tuːk/ 🍁";
+        assert_eq!(sanitize(text), text);
+    }
 }

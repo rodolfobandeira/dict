@@ -183,7 +183,7 @@ follows one hop to the real definitions, then reports where they came from.
 | `src/render.rs` | terminal output |
 
 ```
-cargo test     # 40 tests, including integrity checks on the curated word lists
+cargo test     # 42 tests, including integrity checks on the curated word lists
 ```
 
 ## Licence
